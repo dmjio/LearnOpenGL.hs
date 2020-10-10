@@ -1,0 +1,44 @@
+
+./Main.hs,1244
+module Main Main10,11
+pythagoras pythagoras40,41
+len len43,44
+unitVector unitVector46,47
+dotp dotp49,50
+dotp' dotp'52,53
+crossP crossP55,56
+theta theta58,59
+degreesToRadians degreesToRadians66,67
+okedoke okedoke69,70
+persp persp72,73
+main main77,78
+dumpError dumpError119,120
+proxySizeOf proxySizeOf122,123
+printGLVersion printGLVersion125,126
+makeShaderProgram makeShaderProgram132,133
+type VAO VAO138,139
+type VBO VBO139,140
+type EBO EBO140,141
+type TEXTURE TEXTURE141,142
+floatSize floatSize143,144
+initBuffers initBuffers146,147
+toImage toImage201,202
+loadTexture loadTexture213,214
+withPtrwithPtr237,238
+f f242,243
+g g247,248
+k k253,254
+createShaderProgram createShaderProgram262,263
+checkShaderLinking checkShaderLinking272,273
+compileVertexShader compileVertexShader286,287
+getVertexShader getVertexShader298,299
+compileFragmentShader compileFragmentShader301,302
+getFragmentShader getFragmentShader313,314
+checkShaderCompilation checkShaderCompilation316,317
+verts verts329,330
+indices indices338,339
+render render352,353
+setFloat setFloat373,374
+setMatrix setMatrix379,380
+process process389,390
+frameBufferSizeCallback frameBufferSizeCallback419,420

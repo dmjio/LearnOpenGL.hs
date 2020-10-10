@@ -1,0 +1,3 @@
+:set -XScopedTypeVariables
+:set -XTypeApplications
+:set -XOverloadedStrings
