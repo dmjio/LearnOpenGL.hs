@@ -44,6 +44,7 @@ let
      Transformations-Spin = buildDemo "Transformations-Spin";
      CoordinateSystems = buildDemo "CoordinateSystems";
      CoordinateSystems-Ex1 = buildDemo "CoordinateSystems-Ex1";
+     Camera = buildDemo "Camera";
   };
 in
   with myPkgs;
@@ -69,5 +70,6 @@ in
     cd ${Transformations-Spin} && ./bin/Transformations-Spin
     cd ${CoordinateSystems} && ./bin/CoordinateSystems
     cd ${CoordinateSystems-Ex1} && ./bin/CoordinateSystems-Ex1
+    cd ${Camera} && ./bin/Camera
   '';
 }
