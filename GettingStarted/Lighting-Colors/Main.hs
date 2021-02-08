@@ -198,20 +198,11 @@ initBuffers callback = do
 
     -- cube position attribute
     glVertexAttribPointer 0 3 GL_FLOAT GL_FALSE
-      (fromIntegral (floatSize * 6))
+      (fromIntegral (floatSize * 3))
         nullPtr
     dumpError "glVertexAttribPointer 0 3"
 
     glEnableVertexAttribArray 0
-
-    -- cube position attribute
-    glVertexAttribPointer 1 3 GL_FLOAT GL_FALSE
-      (fromIntegral (floatSize * 6))
-        nullPtr
-    dumpError "glVertexAttribPointer 0 3"
-
-    glEnableVertexAttribArray 1
-
     dumpError "glEnableVertexAttribArray 0"
 
     -- init lighting
@@ -219,7 +210,7 @@ initBuffers callback = do
     glBindVertexArray =<< peek lightVaoPtr
     peek vboPtr >>= glBindBuffer GL_ARRAY_BUFFER
     glVertexAttribPointer 0 3 GL_FLOAT GL_FALSE
-      (fromIntegral (floatSize * 6))
+      (fromIntegral (floatSize * 3))
         nullPtr
     dumpError "glVertexAttribPointer 0 3"
     glEnableVertexAttribArray 0
@@ -320,47 +311,42 @@ checkShaderCompilation shader = do
 verts :: Vector Float
 verts
   = V.fromList
-  [     -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-        -0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-
-        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-        -0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
-        -0.5,  0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5,  0.5, -1.0,  0.0,  0.0,
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
-
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
-         0.5,  0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5,  0.5,  1.0,  0.0,  0.0,
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
-
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-        -0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-        -0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0
+  [ -0.5, -0.5, -0.5,
+     0.5, -0.5, -0.5,
+     0.5,  0.5, -0.5,
+     0.5,  0.5, -0.5,
+    -0.5,  0.5, -0.5,
+    -0.5, -0.5, -0.5,
+    -0.5, -0.5,  0.5,
+     0.5, -0.5,  0.5,
+     0.5,  0.5,  0.5,
+     0.5,  0.5,  0.5,
+    -0.5,  0.5,  0.5,
+    -0.5, -0.5,  0.5,
+    -0.5,  0.5,  0.5,
+    -0.5,  0.5, -0.5,
+    -0.5, -0.5, -0.5,
+    -0.5, -0.5, -0.5,
+    -0.5, -0.5,  0.5,
+    -0.5,  0.5,  0.5,
+     0.5,  0.5,  0.5,
+     0.5,  0.5, -0.5,
+     0.5, -0.5, -0.5,
+     0.5, -0.5, -0.5,
+     0.5, -0.5,  0.5,
+     0.5,  0.5,  0.5,
+    -0.5, -0.5, -0.5,
+     0.5, -0.5, -0.5,
+     0.5, -0.5,  0.5,
+     0.5, -0.5,  0.5,
+    -0.5, -0.5,  0.5,
+    -0.5, -0.5, -0.5,
+    -0.5,  0.5, -0.5,
+     0.5,  0.5, -0.5,
+     0.5,  0.5,  0.5,
+     0.5,  0.5,  0.5,
+    -0.5,  0.5,  0.5,
+    -0.5,  0.5, -0.5
   ]
 
 render
@@ -383,7 +369,6 @@ render lightingShader lightCubeShader vaoPtr lightVaoPtr window cameraRef lastFr
 
   setVec3 lightingShader "objectColor" (V3 1.0 0.5 0.31)
   setVec3 lightingShader "lightColor" (V3 1 1 1)
-  setVec3 lightingShader "lightPos" lightPos
 
   dumpError "glUseProgram lightingShader"
 

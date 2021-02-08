@@ -10,13 +10,7 @@ let
         postInstall = ''
           mkdir -p $out/img
           if [ -f ${drv.src}/frag.glsl ]; then
-            cp -v ${drv.src}/frag.glsl $out
-          fi
-          if [ -f ${drv.src}/frag2.glsl ]; then
-            cp -v ${drv.src}/frag2.glsl $out
-          fi
-          if [ -f ${drv.src}/vert.glsl ]; then
-            cp -v ${drv.src}/vert.glsl $out
+            cp -v ${drv.src}/*.glsl $out
           fi
           if [ -d ${drv.src}/img ]; then
             cp -v ${drv.src}/img/* $out/img
@@ -46,12 +40,13 @@ let
      CoordinateSystems-Ex1 = buildDemo "CoordinateSystems-Ex1";
      Camera = buildDemo "Camera";
      Camera-Ex1 = buildDemo "Camera-Ex1";
+     Camera-Ex2 = buildDemo "Camera-Ex2";
   };
 in
   with myPkgs;
 {
-  inherit app;
-  script = pkgs.writeScriptBin "demo" ''
+  inherit app pkgs;
+  demo = pkgs.writeScriptBin "demo" ''
     cd ${HelloTriangle}      && ./bin/HelloTriangle
     cd ${HelloTriangle-Ex1}  && ./bin/HelloTriangle-Ex1
     cd ${HelloTriangle-Ex2}  && ./bin/HelloTriangle-Ex2
@@ -73,5 +68,6 @@ in
     cd ${CoordinateSystems-Ex1} && ./bin/CoordinateSystems-Ex1
     cd ${Camera} && ./bin/Camera
     cd ${Camera-Ex1} && ./bin/Camera-Ex1
+    cd ${Camera-Ex2} && ./bin/Camera-Ex2
   '';
 }

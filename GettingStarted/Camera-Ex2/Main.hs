@@ -113,32 +113,37 @@ main = do
       setCursorInputMode window CursorInputMode'Disabled
       glEnable GL_DEPTH_TEST
       dumpError "glEnable"
-      lightingShader <- makeShaderProgram "vert.glsl" "frag.glsl"
-      lightCubeShader <- makeShaderProgram "light_cube_vert.glsl" "light_cube_frag.glsl"
+      shaderProgram <- makeShaderProgram "vert.glsl" "frag.glsl"
       dumpError "shader"
-      initBuffers $ \vaoPtr lightVaoPtr vboPtr -> do
+      initBuffers $ \vaoPtr vboPtr containerPtr awesomeFacePtr -> do
+        glUseProgram shaderProgram
+        dumpError "use program"
+        setInt shaderProgram "texture1" 0
+        dumpError "set texture1"
+        setInt shaderProgram "texture2" 1
+        dumpError "set texture2"
         hFlush stdout
+        ref <- newIORef (0.2 :: Float)
         lastFrameRef <- newIORef 0.0
         deltaRef <- newIORef 0.0
         forever $ do
           shouldClose <- windowShouldClose window
           if shouldClose
             then do
-              glDeleteProgram lightingShader
-              glDeleteProgram lightCubeShader
+              glDeleteProgram shaderProgram
               glDeleteVertexArrays 1 vaoPtr
               glDeleteBuffers 1 vboPtr
               terminate
               exitSuccess
             else do
-              process window cameraRef deltaRef
-              render lightingShader lightCubeShader vaoPtr lightVaoPtr window
+              process window ref cameraRef deltaRef
+              render shaderProgram vaoPtr containerPtr awesomeFacePtr window ref
                 cameraRef lastFrameRef deltaRef
               swapBuffers window
               pollEvents
 
 debug :: Bool
-debug = False
+debug = True
 
 dumpError :: String -> IO ()
 dumpError str = do
@@ -168,24 +173,22 @@ makeShaderProgram vertShaderFile fragShaderFile = do
   createShaderProgram v f
 
 type VAO = Ptr GLuint
-type LightVAO = Ptr GLuint
 type VBO = Ptr GLuint
 type EBO = Ptr GLuint
+type TEXTURE = Ptr GLuint
 
 floatSize :: Int
 floatSize = sizeOf (undefined :: Float)
 
-initBuffers :: (VBO -> VAO -> LightVAO -> IO ()) -> IO ()
+initBuffers :: (VBO -> VAO -> TEXTURE -> TEXTURE -> IO ()) -> IO ()
 initBuffers callback = do
- alloca $ \lightVaoPtr -> do
   alloca $ \vaoPtr -> do
    alloca $ \vboPtr -> do
-
-    -- init cube vao
     glGenVertexArrays 1 vaoPtr
     dumpError "glGenVertexArrays 1 vaoPtr"
     glGenBuffers 1 vboPtr
     dumpError "glGenBuffers 1 vboPtr"
+    peek vaoPtr >>= glBindVertexArray
     peek vboPtr >>= glBindBuffer GL_ARRAY_BUFFER
     V.unsafeWith verts $ \vertsPtr ->
       glBufferData
@@ -194,37 +197,67 @@ initBuffers callback = do
         (castPtr vertsPtr)
         GL_STATIC_DRAW
     dumpError "glBufferData 1"
-    peek vaoPtr >>= glBindVertexArray
 
-    -- cube position attribute
     glVertexAttribPointer 0 3 GL_FLOAT GL_FALSE
-      (fromIntegral (floatSize * 6))
+      (fromIntegral (floatSize * 5))
         nullPtr
     dumpError "glVertexAttribPointer 0 3"
 
     glEnableVertexAttribArray 0
-
-    -- cube position attribute
-    glVertexAttribPointer 1 3 GL_FLOAT GL_FALSE
-      (fromIntegral (floatSize * 6))
-        nullPtr
-    dumpError "glVertexAttribPointer 0 3"
-
-    glEnableVertexAttribArray 1
-
     dumpError "glEnableVertexAttribArray 0"
 
-    -- init lighting
-    glGenVertexArrays 1 lightVaoPtr
-    glBindVertexArray =<< peek lightVaoPtr
-    peek vboPtr >>= glBindBuffer GL_ARRAY_BUFFER
-    glVertexAttribPointer 0 3 GL_FLOAT GL_FALSE
-      (fromIntegral (floatSize * 6))
-        nullPtr
-    dumpError "glVertexAttribPointer 0 3"
-    glEnableVertexAttribArray 0
+    glVertexAttribPointer 1 2 GL_FLOAT GL_FALSE
+      (fromIntegral (floatSize * 5))
+        (nullPtr `plusPtr` (3 * floatSize))
+    dumpError "glVertexAttribPointer 0"
 
-    callback vaoPtr lightVaoPtr vboPtr
+    glEnableVertexAttribArray 1
+    dumpError "glEnableVertexAttribArray 1"
+
+    loadTexture "img/container.jpg" GL_REPEAT $ \container ->
+      loadTexture "img/awesomeface.png" GL_REPEAT $ \face ->
+        callback vaoPtr vboPtr container face
+
+toImage
+  :: String
+  -> ByteString
+  -> (Ptr Word8 -> GLint -> GLint -> IO ())
+  -> IO ()
+toImage name bytes go =
+  case decodeImage bytes of
+    Right (ImageYCbCr8 i) ->
+      V.unsafeWith (imageData (convertImage i :: CPTI.Image PixelRGB8)) $ \ptr ->
+        go ptr (fromIntegral (imageWidth i)) (fromIntegral (imageHeight i))
+    Right (ImageRGBA8 i) ->
+      V.unsafeWith (imageData (flipVertically (convertImage i :: CPTI.Image PixelRGBA8))) $ \ptr ->
+        go ptr (fromIntegral (imageWidth i)) (fromIntegral (imageHeight i))
+    _  -> do
+      putStrLn name
+      exitFailure
+
+loadTexture :: String -> GLint -> (TEXTURE -> IO ()) -> IO ()
+loadTexture name style f = do
+  putStrLn ("loading texture: " <> name)
+  alloca $ \texturePtr -> do
+    glGenTextures 1 texturePtr
+    dumpError "glGenTextures 1 texturePtr"
+    glBindTexture GL_TEXTURE_2D =<< peek texturePtr
+    dumpError "glBindTexture GL_TEXTURE_2D =<< peek texturePtr"
+    glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_S style
+    glTexParameteri GL_TEXTURE_2D GL_TEXTURE_WRAP_T style
+    glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MIN_FILTER GL_LINEAR
+    glTexParameteri GL_TEXTURE_2D GL_TEXTURE_MAG_FILTER GL_LINEAR
+    bytes <- B.readFile name
+    let typ | ".png" `isSuffixOf` name = GL_RGBA | otherwise = GL_RGB
+    toImage name bytes $ \ptr w h -> do
+      glTexImage2D GL_TEXTURE_2D 0
+        GL_RGB w h
+          0 typ GL_UNSIGNED_BYTE
+            (castPtr ptr)
+      dumpError "glTexImage2D"
+      glGenerateMipmap GL_TEXTURE_2D
+      dumpError "glGenMipmap"
+      f texturePtr
 
 withPtr
   :: (Functor f, Storable a, Floating a, Foldable f, Foldable g)
@@ -238,16 +271,6 @@ withPtr
   . DL.transpose
   . F.toList
   . fmap F.toList
-
-withVec
-  :: (Functor f, Storable a, Floating a, Foldable f)
-  => f a
-  -> (Ptr a -> IO ())
-  -> IO ()
-withVec
-  = V.unsafeWith
-  . V.fromList
-  . F.toList
 
 translated :: V3 Float -> M44 Float
 translated = mkTransformation (axisAngle (V3 0 0 0) 0)
@@ -320,72 +343,77 @@ checkShaderCompilation shader = do
 verts :: Vector Float
 verts
   = V.fromList
-  [     -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-         0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-        -0.5,  0.5, -0.5,  0.0,  0.0, -1.0,
-        -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,
-
-        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-         0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-        -0.5,  0.5,  0.5,  0.0,  0.0,  1.0,
-        -0.5, -0.5,  0.5,  0.0,  0.0,  1.0,
-
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
-        -0.5,  0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,
-        -0.5, -0.5,  0.5, -1.0,  0.0,  0.0,
-        -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,
-
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
-         0.5,  0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5, -0.5,  1.0,  0.0,  0.0,
-         0.5, -0.5,  0.5,  1.0,  0.0,  0.0,
-         0.5,  0.5,  0.5,  1.0,  0.0,  0.0,
-
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-         0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-        -0.5, -0.5,  0.5,  0.0, -1.0,  0.0,
-        -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,
-
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5, -0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-         0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-        -0.5,  0.5,  0.5,  0.0,  1.0,  0.0,
-        -0.5,  0.5, -0.5,  0.0,  1.0,  0.0
+  [ -0.5, -0.5, -0.5,  0.0, 0.0,
+     0.5, -0.5, -0.5,  1.0, 0.0,
+     0.5,  0.5, -0.5,  1.0, 1.0,
+     0.5,  0.5, -0.5,  1.0, 1.0,
+    -0.5,  0.5, -0.5,  0.0, 1.0,
+    -0.5, -0.5, -0.5,  0.0, 0.0,
+    -0.5, -0.5,  0.5,  0.0, 0.0,
+     0.5, -0.5,  0.5,  1.0, 0.0,
+     0.5,  0.5,  0.5,  1.0, 1.0,
+     0.5,  0.5,  0.5,  1.0, 1.0,
+    -0.5,  0.5,  0.5,  0.0, 1.0,
+    -0.5, -0.5,  0.5,  0.0, 0.0,
+    -0.5,  0.5,  0.5,  1.0, 0.0,
+    -0.5,  0.5, -0.5,  1.0, 1.0,
+    -0.5, -0.5, -0.5,  0.0, 1.0,
+    -0.5, -0.5, -0.5,  0.0, 1.0,
+    -0.5, -0.5,  0.5,  0.0, 0.0,
+    -0.5,  0.5,  0.5,  1.0, 0.0,
+     0.5,  0.5,  0.5,  1.0, 0.0,
+     0.5,  0.5, -0.5,  1.0, 1.0,
+     0.5, -0.5, -0.5,  0.0, 1.0,
+     0.5, -0.5, -0.5,  0.0, 1.0,
+     0.5, -0.5,  0.5,  0.0, 0.0,
+     0.5,  0.5,  0.5,  1.0, 0.0,
+    -0.5, -0.5, -0.5,  0.0, 1.0,
+     0.5, -0.5, -0.5,  1.0, 1.0,
+     0.5, -0.5,  0.5,  1.0, 0.0,
+     0.5, -0.5,  0.5,  1.0, 0.0,
+    -0.5, -0.5,  0.5,  0.0, 0.0,
+    -0.5, -0.5, -0.5,  0.0, 1.0,
+    -0.5,  0.5, -0.5,  0.0, 1.0,
+     0.5,  0.5, -0.5,  1.0, 1.0,
+     0.5,  0.5,  0.5,  1.0, 0.0,
+     0.5,  0.5,  0.5,  1.0, 0.0,
+    -0.5,  0.5,  0.5,  0.0, 0.0,
+    -0.5,  0.5, -0.5,  0.0, 1.0
   ]
 
 render
   :: GLuint
-  -> GLuint
   -> VAO
-  -> LightVAO
+  -> TEXTURE
+  -> TEXTURE
   -> Window
+  -> IORef Float
   -> IORef Camera
   -> IORef Float
   -> IORef Float
   -> IO ()
-render lightingShader lightCubeShader vaoPtr lightVaoPtr window cameraRef lastFrameRef deltaRef = do
+render shaderProgram vaoPtr containerPtr awesomePtr window ref cameraRef lastFrameRef deltaRef = do
 
   -- glPolygonMode GL_FRONT_AND_BACK GL_LINE
-  glClearColor 0.1 0.1 0.1 1.0
+  glClearColor 0.2 0.3 0.3 1.0
   glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT)
 
-  glUseProgram lightingShader
+  glActiveTexture GL_TEXTURE0
+  dumpError "glActiveTexture GL_TEXTURE0"
 
-  setVec3 lightingShader "objectColor" (V3 1.0 0.5 0.31)
-  setVec3 lightingShader "lightColor" (V3 1 1 1)
-  setVec3 lightingShader "lightPos" lightPos
+  glBindTexture GL_TEXTURE_2D =<< peek containerPtr
+  dumpError "glDrawArrays GL_TRIANGLES 0 36"
 
-  dumpError "glUseProgram lightingShader"
+  glActiveTexture GL_TEXTURE1
+  dumpError "glActiveTexture GL_TEXTURE1"
+
+  glBindTexture GL_TEXTURE_2D =<< peek awesomePtr
+  dumpError "glBindTexture GL_TEXTURE_2D =<< peek containerPtr"
+
+  glUseProgram shaderProgram
+  dumpError "glUseProgram shaderProgram"
+
+  setFloat shaderProgram "mixValue" =<< readIORef ref
 
   let radius = 10.0 :: Float
   Just (realToFrac -> time) <- getTime
@@ -409,29 +437,22 @@ render lightingShader lightCubeShader vaoPtr lightVaoPtr window cameraRef lastFr
         0.1
         100.0
 
-  setMatrix False lightingShader "view" view
-  setMatrix False lightingShader "projection" projection
-  setMatrix False lightingShader "model" identity
+  setMatrix False shaderProgram "view" view
+  setMatrix False shaderProgram "projection" projection
 
   peek vaoPtr >>= glBindVertexArray
 
-  glDrawArrays GL_TRIANGLES 0 36
+  forM_ (zip [1..] positions) $ \(i :: Int,position) -> do
+    Just (realToFrac -> time) <- getTime
+    setMatrix False shaderProgram "model" $
+      translated position !*!
+        rotated (if i `mod` 3 == 0 || i == 1
+                 then time * fromIntegral i / 2
+                 else fromIntegral $ i * 20)
+          (V3 1 0.3 0.5)
+    glDrawArrays GL_TRIANGLES 0 36
 
   dumpError "glDrawArrays GL_TRIANGLES 0 36"
-
-  glUseProgram lightCubeShader
-  setMatrix False lightCubeShader "projection" projection
-  setMatrix False lightCubeShader "view" view
-
-  let model' = translated lightPos !*! scaled (V4 0.2 0.2 0.2 1)
-
-  setMatrix False lightCubeShader "model" model'
-
-  glBindVertexArray =<< peek lightVaoPtr
-  glDrawArrays GL_TRIANGLES 0 36
-
-lightPos :: V3 Float
-lightPos = V3 1.2 1.0 2.0
 
 positions :: [V3 Float]
 positions =
@@ -467,23 +488,36 @@ setMatrix flipped id' name val = do
       $ glUniformMatrix4fv location 1
       $ fromIntegral (popCount flipped)
 
-setVec3 :: GLuint -> String -> V3 Float -> IO ()
-setVec3 id' name val = do
-  withCString name $ \cstr -> do
-    location <- glGetUniformLocation id' cstr
-    withVec val (glUniform3fv location 1)
-
 process
   :: Window
+  -> IORef Float
   -> IORef Camera
   -> IORef Float
   -> IO ()
-process window cameraRef deltaRef = do
+process window ref cameraRef deltaRef = do
   delta <- readIORef deltaRef
   keyState <- getKey window Key'Escape
   case keyState of
     KeyState'Pressed ->
       setWindowShouldClose window True
+    _ -> pure ()
+
+  keyState <- getKey window Key'Up
+  case keyState of
+    KeyState'Pressed -> do
+      modifyIORef' ref $ \x -> do
+        case x + 0.01 of
+          newX | newX >= 1.0 -> 1.0
+               | otherwise -> newX
+    _ -> pure ()
+
+  keyState <- getKey window Key'Down
+  case keyState of
+    KeyState'Pressed -> do
+      modifyIORef' ref $ \x -> do
+        case x - 0.01 of
+          newX | newX <= 0.0 -> 0.0
+               | otherwise -> newX
     _ -> pure ()
 
   keyState <- getKey window Key'W
