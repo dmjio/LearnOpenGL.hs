@@ -185,4 +185,4 @@ There are many more advanced chapters to cover, the GettingStarted section being
 
 ## Vulkan
 
-Many people have asked why I focussed on OpenGL instead of Vulkan. The short answer is that despite Vulkan being the future of game development, it is much more difficult (especially for beginners to GPU programming). Additionally, most Vulkan learning resources have recommended OpenGL as a learning good prerequisite. OpenGL also has a much larger body of knowledge currently, making it a good first step in the learning journey. Lastly, https://learnvulkan.com/ would be a good Haskell port to have as well, when it reaches maturity.
+Many people have asked why I focussed on OpenGL instead of Vulkan. The short answer is that despite Vulkan being the future of game development, it is much more difficult (especially for beginners to GPU programming). Additionally, most Vulkan learning resources have recommended OpenGL as a good learning prerequisite. OpenGL also has a much larger body of knowledge currently, making it a good first step in the learning journey. Lastly, https://learnvulkan.com/ would be a good Haskell port to have as well, when it reaches maturity.
