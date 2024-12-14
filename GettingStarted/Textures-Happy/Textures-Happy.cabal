@@ -3,7 +3,7 @@ name:                Textures-Happy
 version:             0.1.0.0
 license-file:        LICENSE
 author:              David Johnson
-maintainer:          djohnson.m@gmail.com
+maintainer:          code@dmj.io
 build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
